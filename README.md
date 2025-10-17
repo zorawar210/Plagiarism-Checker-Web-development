@@ -136,7 +136,7 @@ json
   ]
 }
 ✨ Contributors
-👨‍💻 Suyash Mangla – Backend, NLP, API Development
+👨‍💻 Zorawar singh dhesi – Backend, NLP, API Development
 🎨 Kaggle – Frontend, UI/UX
 
 📜 License
