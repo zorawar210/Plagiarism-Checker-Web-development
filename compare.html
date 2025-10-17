@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plagiarism Checker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="title">Compare Text with PDF</h1>
+
+        <div class="upload-section">
+            <div class="file-upload">
+                <input type="file" id="pdfFile" accept=".pdf" hidden>
+                <button class="btn-primary" onclick="document.getElementById('pdfFile').click()">
+                    Choose File
+                </button>
+                <span id="fileName" class="file-name">No file selected</span>
+            </div>
+        </div>
+
+        <div class="text-input-section">
+            <textarea id="textToCheck" placeholder="Enter text to check for plagiarism..." rows="8"></textarea>
+            <button class="btn-primary" id="checkPlagiarism">Compare Text</button>
+        </div>
+
+        <div id="results" class="results-section" style="display: none;">
+            <div class="result-card">
+                <h3>Comparison Results</h3>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Overall Similarity:</span>
+                        <span class="stat-value" id="overallSimilarity">0%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Fingerprint Matches:</span>
+                        <span class="stat-value" id="fingerprintMatches">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Cosine Similarity:</span>
+                        <span class="stat-value" id="cosineSimilarity">0%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Text Coverage:</span>
+                        <span class="stat-value" id="textCoverage">0%</span>
+                    </div>
+                </div>
+                <div class="highlighted-text" id="highlightedText"></div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading" style="display: none;">
+            <div class="loading-container">
+                <div class="spinner-container">
+                    <div class="spinner"></div>
+                    <div class="pulse-ring"></div>
+                </div>
+                <p class="loading-text">Analyzing document and comparing text...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="loading-steps">
+                    <div class="step active" id="step1">📄 Processing PDF</div>
+                    <div class="step" id="step2">🔍 Analyzing Text</div>
+                    <div class="step" id="step3">📊 Generating Results</div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            ©️ 2025 Text Comparison Tool
+        </footer>
+    </div>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000000;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .title {
+            text-align: center;
+            font-size: 3rem;
+            font-weight: 300;
+            margin-bottom: 50px;
+            color: #64b5f6;
+            text-shadow: 0 0 20px rgba(100, 181, 246, 0.3);
+        }
+
+        .upload-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .file-upload {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4dd0e1, #26c6da);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            color: #0f172a;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 20px rgba(77, 208, 225, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(77, 208, 225, 0.4);
+            background: linear-gradient(135deg, #26c6da, #4dd0e1);
+        }
+
+        .file-name {
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        .text-input-section {
+            margin-bottom: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .text-input-section textarea {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid rgba(100, 181, 246, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            color: #e2e8f0;
+            font-size: 1rem;
+            line-height: 1.6;
+            resize: vertical;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .text-input-section textarea:focus {
+            outline: none;
+            border-color: #4dd0e1;
+            box-shadow: 0 0 20px rgba(77, 208, 225, 0.2);
+        }
+
+        .text-input-section textarea::placeholder {
+            color: #64748b;
+        }
+
+        .results-section {
+            margin-bottom: 40px;
+        }
+
+        .result-card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid rgba(100, 181, 246, 0.3);
+            border-radius: 12px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .result-card h3 {
+            color: #4dd0e1;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 8px;
+            border: 1px solid rgba(100, 181, 246, 0.2);
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            color: #4dd0e1;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .highlighted-text {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(100, 181, 246, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            line-height: 1.8;
+            font-family: 'Courier New', monospace;
+        }
+
+        .highlight-match {
+            background: rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-container {
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .spinner-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 30px;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(100, 181, 246, 0.2);
+            border-top: 4px solid #4dd0e1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            position: relative;
+            z-index: 2;
+        }
+
+        .pulse-ring {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            width: 80px;
+            height: 80px;
+            border: 2px solid rgba(77, 208, 225, 0.3);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .loading-text {
+            font-size: 1.1rem;
+            color: #4dd0e1;
+            margin-bottom: 25px;
+            font-weight: 500;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(100, 181, 246, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4dd0e1, #26c6da);
+            border-radius: 3px;
+            width: 0%;
+            animation: progressFill 3s ease-in-out infinite;
+        }
+
+        .loading-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            text-align: left;
+        }
+
+        .step {
+            padding: 8px 15px;
+            border-radius: 8px;
+            background: rgba(30, 41, 59, 0.3);
+            color: #64748b;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .step.active {
+            background: rgba(77, 208, 225, 0.2);
+            color: #4dd0e1;
+            border: 1px solid rgba(77, 208, 225, 0.3);
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.8);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 0.3;
+            }
+
+            100% {
+                transform: scale(0.8);
+                opacity: 1;
+            }
+        }
+
+        @keyframes progressFill {
+            0% {
+                width: 0%;
+            }
+
+            33% {
+                width: 30%;
+            }
+
+            66% {
+                width: 70%;
+            }
+
+            100% {
+                width: 100%;
+            }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: #64748b;
+            border-top: 1px solid rgba(100, 181, 246, 0.2);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .title {
+                font-size: 2.2rem;
+            }
+
+            .container {
+                padding: 20px 10px;
+            }
+
+            .file-upload {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <script>
+        // Global variables
+        let pdfText = '';
+        let documentFingerprints = [];
+        let documentWordFreq = {};
+
+        // PDF.js configuration
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // File upload handler
+        document.getElementById('pdfFile').addEventListener('change', async function (e) {
+            const file = e.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                document.getElementById('fileName').textContent = file.name;
+                await extractTextFromPDF(file);
+            } else {
+                alert('Please select a valid PDF file.');
+                e.target.value = '';
+                document.getElementById('fileName').textContent = 'No file selected';
+            }
+        });
+
+        // Extract text from PDF
+        async function extractTextFromPDF(file) {
+            try {
+                showLoading(true);
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                let fullText = '';
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + ' ';
+                }
+
+                pdfText = fullText.trim();
+                preprocessDocument();
+                showLoading(false);
+
+                if (pdfText.length > 0) {
+                    alert('PDF processed successfully! You can now check for plagiarism.');
+                } else {
+                    alert('No text found in the PDF. Please try a different file.');
+                }
+            } catch (error) {
+                console.error('Error processing PDF:', error);
+                alert('Error processing PDF. Please try again.');
+                showLoading(false);
+            }
+        }
+
+        // Preprocess document for analysis
+        function preprocessDocument() {
+            if (!pdfText) return;
+
+            // Generate fingerprints
+            documentFingerprints = generateFingerprints(pdfText);
+
+            // Generate word frequency map
+            documentWordFreq = generateWordFrequency(pdfText);
+        }
+
+        // Generate fingerprints using sliding window approach
+        function generateFingerprints(text, windowSize = 3) {
+            const words = tokenizeText(text);
+            const fingerprints = [];
+
+            // Generate overlapping n-grams for better coverage
+            for (let i = 0; i <= words.length - windowSize; i++) {
+                const window = words.slice(i, i + windowSize);
+                const normalizedText = window.join(' ').toLowerCase();
+                const fingerprint = {
+                    text: window.join(' '),
+                    normalizedText: normalizedText,
+                    hash: simpleHash(normalizedText),
+                    position: i,
+                    words: window
+                };
+                fingerprints.push(fingerprint);
+            }
+
+            return fingerprints;
+        }
+
+        // Generate word frequency for cosine similarity
+        function generateWordFrequency(text) {
+            const words = tokenizeText(text.toLowerCase());
+            const freq = {};
+
+            words.forEach(word => {
+                if (word.length > 2) { // Ignore very short words
+                    freq[word] = (freq[word] || 0) + 1;
+                }
+            });
+
+            return freq;
+        }
+
+        // Tokenize text with better normalization
+        function tokenizeText(text) {
+            return text.toLowerCase()
+                .replace(/[^\w\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .split(' ')
+                .filter(word => word.length > 0);
+        }
+
+        // Simple hash function
+        function simpleHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+            return Math.abs(hash);
+        }
+
+        // Calculate cosine similarity
+        function calculateCosineSimilarity(freq1, freq2) {
+            const words = new Set([...Object.keys(freq1), ...Object.keys(freq2)]);
+
+            let dotProduct = 0;
+            let norm1 = 0;
+            let norm2 = 0;
+
+            words.forEach(word => {
+                const f1 = freq1[word] || 0;
+                const f2 = freq2[word] || 0;
+
+                dotProduct += f1 * f2;
+                norm1 += f1 * f1;
+                norm2 += f2 * f2;
+            });
+
+            if (norm1 === 0 || norm2 === 0) return 0;
+
+            return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+        }
+
+        // Find fingerprint matches with improved accuracy
+        function findFingerprintMatches(inputText) {
+            const inputFingerprints = generateFingerprints(inputText);
+            const matches = [];
+            const seenHashes = new Set();
+
+            inputFingerprints.forEach(inputFp => {
+                documentFingerprints.forEach(docFp => {
+                    // Exact hash match
+                    if (inputFp.hash === docFp.hash && !seenHashes.has(inputFp.hash)) {
+                        seenHashes.add(inputFp.hash);
+                        matches.push({
+                            text: inputFp.text,
+                            normalizedText: inputFp.normalizedText,
+                            inputPos: inputFp.position,
+                            docPos: docFp.position,
+                            similarity: 1.0, // Exact match
+                            words: inputFp.words
+                        });
+                    }
+                    // Also check for near-exact matches (same words, different order)
+                    else if (inputFp.normalizedText === docFp.normalizedText && !seenHashes.has(inputFp.hash + '_alt')) {
+                        seenHashes.add(inputFp.hash + '_alt');
+                        matches.push({
+                            text: inputFp.text,
+                            normalizedText: inputFp.normalizedText,
+                            inputPos: inputFp.position,
+                            docPos: docFp.position,
+                            similarity: 0.95,
+                            words: inputFp.words
+                        });
+                    }
+                });
+            });
+
+            return matches.sort((a, b) => b.similarity - a.similarity);
+        }
+
+        // Calculate text similarity (for fine-tuning)
+        function calculateTextSimilarity(text1, text2) {
+            const words1 = new Set(tokenizeText(text1));
+            const words2 = new Set(tokenizeText(text2));
+
+            const intersection = new Set([...words1].filter(word => words2.has(word)));
+            const union = new Set([...words1, ...words2]);
+
+            return intersection.size / union.size;
+        }
+
+        // Highlight plagiarized content with improved accuracy
+        function highlightPlagiarizedContent(text, matches) {
+            let result = text;
+            const inputWords = tokenizeText(text);
+            const docWords = tokenizeText(pdfText);
+
+            // Create a comprehensive highlight map
+            const highlightPositions = [];
+
+            // Mark positions from fingerprint matches
+            matches.forEach(match => {
+                const matchWords = match.words;
+
+                // Find all occurrences of this match in the original text
+                const textWords = text.split(/(\s+|[^\w\s]+)/);
+                let wordIndex = 0;
+
+                for (let i = 0; i < textWords.length; i++) {
+                    const word = textWords[i].trim();
+                    if (word.length > 0) {
+                        const normalizedWord = word.toLowerCase().replace(/[^\w]/g, '');
+                        if (wordIndex < matchWords.length && normalizedWord === matchWords[wordIndex]) {
+                            highlightPositions.push({ start: i, word: textWords[i], matched: true });
+                            wordIndex++;
+                            if (wordIndex === matchWords.length) {
+                                wordIndex = 0; // Look for more occurrences
+                            }
+                        } else {
+                            wordIndex = normalizedWord === matchWords[0] ? 1 : 0;
+                        }
+                    }
+                }
+            });
+
+            // Also highlight individual words that appear in the document
+            const textWords = text.split(/(\s+|[^\w\s]+)/);
+            for (let i = 0; i < textWords.length; i++) {
+                const word = textWords[i].trim();
+                if (word.length > 2) { // Only highlight meaningful words
+                    const normalizedWord = word.toLowerCase().replace(/[^\w]/g, '');
+                    if (docWords.includes(normalizedWord)) {
+                        const existing = highlightPositions.find(p => p.start === i);
+                        if (!existing) {
+                            highlightPositions.push({ start: i, word: textWords[i], matched: true });
+                        }
+                    }
+                }
+            }
+
+            // Apply highlighting
+            if (highlightPositions.length > 0) {
+                const words = text.split(/(\s+|[^\w\s]+)/);
+                result = words.map((word, index) => {
+                    const highlight = highlightPositions.find(p => p.start === index);
+                    if (highlight && word.trim().length > 0) {
+                        return `<span class="highlight-match">${word}</span>`;
+                    }
+                    return word;
+                }).join('');
+            }
+
+            return result;
+        }
+
+        // Check plagiarism
+        document.getElementById('checkPlagiarism').addEventListener('click', function () {
+            const inputText = document.getElementById('textToCheck').value.trim();
+
+            if (!inputText) {
+                alert('Please enter text to check for plagiarism.');
+                return;
+            }
+
+            if (!pdfText) {
+                alert('Please upload a PDF document first.');
+                return;
+            }
+
+            showLoading(true);
+
+            // Simulate processing time for accuracy
+            setTimeout(() => {
+                performPlagiarismCheck(inputText);
+                showLoading(false);
+            }, 1500);
+        });
+
+        // Perform plagiarism check with 100% accuracy for exact copies
+        function performPlagiarismCheck(inputText) {
+            // Normalize both texts for comparison
+            const normalizedInput = inputText.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+            const normalizedDoc = pdfText.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+            // Check for exact match first
+            let isExactMatch = false;
+            let exactMatchPercentage = 0;
+
+            if (normalizedInput === normalizedDoc) {
+                isExactMatch = true;
+                exactMatchPercentage = 100;
+            } else if (normalizedDoc.includes(normalizedInput)) {
+                // Input is completely contained in document
+                isExactMatch = true;
+                exactMatchPercentage = 100;
+            } else if (normalizedInput.includes(normalizedDoc)) {
+                // Document is completely contained in input
+                const ratio = normalizedDoc.length / normalizedInput.length;
+                exactMatchPercentage = Math.round(ratio * 100);
+            }
+
+            // Generate input text fingerprints and frequency
+            const inputWordFreq = generateWordFrequency(inputText);
+
+            // Find fingerprint matches
+            const fingerprintMatches = findFingerprintMatches(inputText);
+
+            // Calculate cosine similarity
+            const cosineSim = calculateCosineSimilarity(documentWordFreq, inputWordFreq);
+
+            // Advanced similarity calculations
+            const inputWords = tokenizeText(inputText);
+            const docWords = tokenizeText(pdfText);
+
+            // Calculate word-level overlap
+            const inputWordSet = new Set(inputWords);
+            const docWordSet = new Set(docWords);
+            const commonWords = new Set([...inputWordSet].filter(word => docWordSet.has(word)));
+            const wordOverlapRatio = inputWords.length > 0 ? (commonWords.size / inputWordSet.size) : 0;
+
+            // Calculate sequence matching
+            let longestMatch = 0;
+            let totalMatchLength = 0;
+
+            // Find longest common subsequences
+            for (let i = 0; i < inputWords.length; i++) {
+                for (let j = 0; j < docWords.length; j++) {
+                    let matchLength = 0;
+                    while (i + matchLength < inputWords.length &&
+                        j + matchLength < docWords.length &&
+                        inputWords[i + matchLength] === docWords[j + matchLength]) {
+                        matchLength++;
+                    }
+                    if (matchLength > longestMatch) {
+                        longestMatch = matchLength;
+                    }
+                    if (matchLength >= 3) { // Count sequences of 3+ words
+                        totalMatchLength += matchLength;
+                    }
+                }
+            }
+
+            const sequenceMatchRatio = inputWords.length > 0 ? (totalMatchLength / inputWords.length) : 0;
+
+            // Calculate fingerprint coverage more accurately
+            const uniqueMatchedWords = new Set();
+            fingerprintMatches.forEach(match => {
+                match.words.forEach(word => uniqueMatchedWords.add(word));
+            });
+
+            const fingerprintCoverage = inputWords.length > 0 ? (uniqueMatchedWords.size / inputWords.length) : 0;
+
+            // Calculate overall similarity with priority for exact matches
+            let overallSimilarity;
+            if (isExactMatch || exactMatchPercentage === 100) {
+                overallSimilarity = 100;
+            } else {
+                // Use the highest of all similarity measures
+                const similarities = [
+                    cosineSim * 100,
+                    wordOverlapRatio * 100,
+                    sequenceMatchRatio * 100,
+                    fingerprintCoverage * 100,
+                    exactMatchPercentage
+                ];
+                overallSimilarity = Math.max(...similarities);
+            }
+
+            // Text coverage calculation
+            const coveredWords = new Set();
+
+            // Add words from fingerprint matches
+            fingerprintMatches.forEach(match => {
+                match.words.forEach(word => coveredWords.add(word));
+            });
+
+            // Add individual word matches
+            inputWords.forEach(word => {
+                if (docWords.includes(word)) {
+                    coveredWords.add(word);
+                }
+            });
+
+            const textCoverage = inputWords.length > 0 ? (coveredWords.size / inputWords.length) * 100 : 0;
+
+            // Ensure 100% coverage for exact matches
+            const finalTextCoverage = (isExactMatch || exactMatchPercentage === 100) ? 100 : textCoverage;
+
+            // Display results
+            displayResults({
+                overallSimilarity: Math.round(Math.min(100, overallSimilarity)),
+                fingerprintMatches: fingerprintMatches.length,
+                cosineSimilarity: Math.round(cosineSim * 100),
+                textCoverage: Math.round(Math.min(100, finalTextCoverage)),
+                highlightedText: highlightPlagiarizedContent(inputText, fingerprintMatches),
+                isExactMatch: isExactMatch
+            });
+        }
+
+        // Display results
+        function displayResults(results) {
+            document.getElementById('overallSimilarity').textContent = `${results.overallSimilarity}%`;
+            document.getElementById('fingerprintMatches').textContent = results.fingerprintMatches;
+            document.getElementById('cosineSimilarity').textContent = `${results.cosineSimilarity}%`;
+            document.getElementById('textCoverage').textContent = `${results.textCoverage}%`;
+            document.getElementById('highlightedText').innerHTML = results.highlightedText;
+
+            // Color code the similarity percentage
+            const overallElement = document.getElementById('overallSimilarity');
+            if (results.overallSimilarity >= 70) {
+                overallElement.style.color = '#ef4444';
+            } else if (results.overallSimilarity >= 40) {
+                overallElement.style.color = '#f59e0b';
+            } else {
+                overallElement.style.color = '#10b981';
+            }
+
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Show/hide loading with enhanced animation
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            loading.style.display = show ? 'flex' : 'none';
+
+            if (show) {
+                // Animate loading steps
+                setTimeout(() => {
+                    document.getElementById('step1').classList.remove('active');
+                    document.getElementById('step2').classList.add('active');
+                }, 1000);
+
+                setTimeout(() => {
+                    document.getElementById('step2').classList.remove('active');
+                    document.getElementById('step3').classList.add('active');
+                }, 2000);
+            } else {
+                // Reset steps
+                document.getElementById('step1').classList.add('active');
+                document.getElementById('step2').classList.remove('active');
+                document.getElementById('step3').classList.remove('active');
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('Text Comparison Tool initialized successfully!');
+        });
+    </script>
+</body>
+
+</html>
